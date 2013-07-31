@@ -5,12 +5,8 @@
 
 #pragma once
 
-#if defined(_MSC_VER) && _MSC_VER >= 1700
-#define USE_FANCY_CPP_FEATURES
-#endif
-
 #ifndef _LINUX
-#include "targetver.h"
+//#include "targetver.h"
 
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
 // Windows Header Files:
@@ -32,9 +28,11 @@
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
-#ifdef USE_FANCY_CPP_FEATURES
-#include <thread>
-#endif // USE_FANCY_CPP_FEATURES
 
-// TODO: reference additional headers your program requires here
-#include "platform.h"
+#ifdef _LINUX
+#define GetFuncAddress(pAddress, szFunction) dlsym(pAddress, szFunction)
+#define GetHandleOfModule(szModuleName) dlopen(szModuleName".so", RTLD_NOLOAD)
+#else
+#define GetFuncAddress(pAddress, szFunction) ::GetProcAddress((HMODULE)pAddress, szFunction)
+#define GetHandleOfModule(szModuleName) GetModuleHandleA(szModuleName".dll")
+#endif

@@ -5,11 +5,8 @@ Advanced Spectator plugin for TF2
 
 Usage
 -
-Open AdvSpec.sln and build.  
-Copy src/Release/advspec.dll to tf/addons or a custom/xyz/addons folder.  
-Add '-insecure' to your TF2 launch options, and put 'plugin_load addons\advspec' in either the console, or in your autoexec.  
-Play around with advspec_toggle_outline and advspec_outline_color commands.  
-To go back to playing on regular servers, simply remove '-insecure' from launch options.
+Build the plugin by following `BUILD.md`, then copy advspec.dll to your TF2 server's addons folder.  
+Load it via `plugin_load addons\advspec`, or create a VDF file.
 
 To-do
 -
@@ -17,10 +14,8 @@ See Issues tab on GitHub.
 
 License
 -
-The license is the same as that of OpenPlugin, quoted below.  
-"Released under GNU GPL ( http://www.gnu.org/licenses/gpl.html ) (let's pretend that notice is in every source file), permission is granted to Valve developers to copy & paste any part of it in any of their games."
+AdvSpec is provided under the BSD 2-Clause License, which is available in full in LICENSE.md
 
 Thanks
 -
-TeamFortress.TV, VanillaTF2, BlackOut Gaming TV and SalTV for testing.  
-Casual and AnAkIn for releasing OpenPlugin, the new base of AdvSpec.
+TeamFortress.TV, VanillaTF2, BlackOut Gaming TV and SalTV for testing.
