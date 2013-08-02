@@ -5,7 +5,7 @@
 
 #pragma once
 
-#ifndef _LINUX
+#ifndef _POSIX
 //#include "targetver.h"
 
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
@@ -15,9 +15,15 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <sys/stat.h>
+
+typedef unsigned char BYTE;
+typedef BYTE *PBYTE;
+
+#define __fastcall
+#define __thiscall
 #endif
 
-#ifndef _LINUX
+#ifndef _POSIX
 // Only available on windows...
 #include <intrin.h>
 #else
@@ -29,7 +35,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-#ifdef _LINUX
+#ifdef _POSIX
 #define GetFuncAddress(pAddress, szFunction) dlsym(pAddress, szFunction)
 #define GetHandleOfModule(szModuleName) dlopen(szModuleName".so", RTLD_NOLOAD)
 #else

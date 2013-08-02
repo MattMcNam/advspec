@@ -36,7 +36,7 @@ IGameResources* GetGameResources() {
 	//IGameResources* res;
     static DWORD funcadd = NULL;
     if( !funcadd )
-        funcadd = FindPattern( (DWORD) GetModuleHandle( _T("client.dll") ), 0x2680C6, (PBYTE) "\xA1\x00\x00\x00\x00\x85\xC0\x74\x06\x05", "x????xxxxx" );
+        funcadd = FindPattern( (DWORD) GetHandleOfModule( _T("client.dll") ), 0x2680C6, (PBYTE) "\xA1\x00\x00\x00\x00\x85\xC0\x74\x06\x05", "x????xxxxx" );
         
     typedef IGameResources* (*GGR_t) (void);
     GGR_t GGR = (GGR_t) funcadd;
@@ -110,7 +110,7 @@ bool AdvSpecPlugin::Load( CreateInterfaceFn interfaceFactory, CreateInterfaceFn 
 {
 	ConnectTier1Libraries( &interfaceFactory, 1 );
 
-	void* hmClient = ::GetModuleHandleA( "client.dll" );
+	void* hmClient = GetHandleOfModule( "client.dll" );
 	CreateInterfaceFn pfnClient = (CreateInterfaceFn) GetFuncAddress( hmClient, "CreateInterface" );
 	pClient			= (IBaseClientDLL*)		pfnClient( "VClient017",			NULL );
 	pEntityList		= (IClientEntityList*)	pfnClient( "VClientEntityList003",	NULL );

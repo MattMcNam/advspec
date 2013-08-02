@@ -42,8 +42,45 @@ source_group("Source FIles" FILES ${SOURCES})
 
 # Setup defines, compiler options and linker options for each platform
 if(UNIX) # Common Unix settings
-	#Not supported, exit with message
-	message( FATAL_ERROR "Linux/OS X not supported yet." )
+	if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+        set(SymbolVisibility "hidden")
+        set(GCC_ExtraCompilerFlags "")
+        set(GCC_ExtraLinkerFlags "")
+        set(WarnFlags "-Wall -Wextra -Wshadow -Wno-invalid-offsetof  -Wno-unknown-pragmas -Wno-unused-parameter -Wno-unused-value -Wno-missing-field-initializers -Wno-sign-compare -Wno-reorder -Wno-invalid-offsetof -Wno-float-equal -Werror=return-type -fdiagnostics-show-option -Wformat -Wformat-security")
+        
+        #Set Optimizer Level
+        if(CMAKE_BUILD_TYPE MATCHES DEBUG)
+            set(OptimizerLevel "-gdwarf-2 -g -O0")
+            add_definitions(-DDEBUG -D_DEBUG -DGNUC -DPOSIX -D_OSX -DOSX -D_DARWIN_UNLIMITED_SELECT -DFD_SETSIZE=10240 -DQUICKTIME_VIDEO -DFORCE_QUICKTIME -DGL_GLEXT_PROTOTYPES -DDX_TO_GL_ABSTRACTION -D_MBCS -D_DLL_EXT=.dylib -D_POSIX=1)
+        else()
+            set(OptimizerLevel "-gdwarf-2 -g -O2 -fno-strict-aliasing -ffast-math -fno-omit-frame-pointer -ftree-vectorize -fpredictive-commoning -funswitch-loops")
+            add_definitions(-DNDEBUG -DGNUC -DPOSIX -D_OSX -DOSX -D_DARWIN_UNLIMITED_SELECT -DFD_SETSIZE=10240 -DQUICKTIME_VIDEO -DFORCE_QUICKTIME -DGL_GLEXT_PROTOTYPES -DDX_TO_GL_ABSTRACTION -D_MBCS -D_DLL_EXT=.dylib -D_POSIX=1)
+        endif()
+        
+        set(CFLAGS "-arch i386 -m32 -march=prescott -momit-leaf-frame-pointer -mtune=core2 ${WarnFlags} -fvisibility=${SymbolVisibility} ${OptimizerLevel} -pipe ${GCC_ExtraCompilerFlags} -Usprintf -Ustrncpy -UPROTECTED_THINGS_ENABLE -mmacosx-version-min=10.5 -fasm-blocks")
+        set(COMPILER_FLAGS ${CFLAGS})
+        add_definitions(-DVPROF_LEVEL=1 -DGNUC -DNO_HOOK_MALLOC -DNO_MALLOC_OVERRIDE)
+        set(LINKER_FLAGS "${CFLAGS} ${GCC_ExtraLinkerFlags} ${OptimizerLevel} -dynamiclib -current_version 1.0 -compatibility_version 1.0 -Wl,-dead_strip -Wl,-no_dead_strip_inits_and_terms")
+    else() # Linux
+        set(SymbolVisibility "hidden")
+        set(GCC_ExtraCompilerFlags "-U_FORTIFY_SOURCE")
+        set(GCC_ExtraLinkerFlags "")
+        set(WarnFlags "-Wall -Wextra -Wshadow -Wno-invalid-offsetof -Wno-unknown-pragmas -Wno-unused-parameter -Wno-unused-value -Wno-missing-field-initializers -Wno-sign-compare -Wno-reorder -Wno-invalid-offsetof -Wno-float-equal -Werror=return-type -fdiagnostics-show-option -Wformat -Wformat-security")
+        
+        # Set Optimizer Level
+        if(CMAKE_BUILD_TYPE MATCHES DEBUG)
+        	set(OptimizerLevel "-gdwarf-2 -g -O0")
+        	add_definitions(-DDEBUG -D_DEBUG -DPOSIX -DGNUC -DLINUX -D_LINUX -DRAD_TELEMETRY_DISABLED -DBINK_VIDEO -DGL_GLEXT_PROTOTYPES -DDX_TO_GL_ABSTRACTION -DUSE_SDL -D_MBCS -D_EXTERNAL_DLL_EXT=.so -D_DLL_EXT=.so -D_LINUX=1 -D_POSIX=1 -DLINUX=1 -DPOSIX=1)
+        else()
+        	set(OptimizerLevel "-gdwarf-2 -g -O2 -fno-strict-aliasing -ffast-math -fno-omit-frame-pointer -ftree-vectorize -fpredictive-commoning -funswitch-loops")
+        	add_definitions(-DNDEBUG -DPOSIX -DGNUC -DLINUX -D_LINUX -DRAD_TELEMETRY_DISABLED -DBINK_VIDEO -DGL_GLEXT_PROTOTYPES -DDX_TO_GL_ABSTRACTION -DUSE_SDL -D_MBCS -D_EXTERNAL_DLL_EXT=.so -D_DLL_EXT=.so -D_LINUX=1 -D_POSIX=1 -DLINUX=1 -DPOSIX=1)
+        endif()
+        
+        set(CFLAGS "-m32 -march=pentium4 -mtune=core2 -msse2 -mfpmath=sse ${WarnFlags} -fvisibility=${SymbolVisibility} ${OptimizerLevel} -pipe ${GCC_ExtraCompilerFlags} -Usprintf -Ustrncpy -UPROTECTED_THINGS_ENABLE")
+        set(COMPILER_FLAGS ${CFLAGS})
+        add_definitions(-DVPROF_LEVEL=1 -DGNUC -DNO_HOOK_MALLOC -DNO_MALLOC_OVERRIDE)
+        set(LINKER_FLAGS "${CFLAGS} ${GCC_ExtraLinkerFlags} ${OptimizerLevel} -Wl,--build-id -shared -Wl,--no-undefined -Wl,-Map,$(@:.so=).map -static-libgcc -Wl,--start-group -Wl,--end-group -lm -ldl -lpthread -l:ld-linux.so.2")
+    endif()
 else() # Windows
 	# Force use of static libs
 	# Credit SteveL & brofield on StackOverflow
@@ -76,7 +113,11 @@ if(WIN32)
 else()
 	if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 		target_link_libraries(advspec ${HL2SDK}/lib/osx32/libtier0.dylib)
+		target_link_libraries(advspec ${HL2SDK}/lib/osx/tier1.a)
 	else()
 		target_link_libraries(advspec ${HL2SDK}/lib/public/linux32/libtier0.so)
+		target_link_libraries(advspec ${HL2SDK}/lib/public/linux32/tier1.a)
 	endif()
+	
+	target_link_libraries(advspec dl)
 endif()

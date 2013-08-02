@@ -11,7 +11,7 @@
 #ifndef VFUNCS_H
 #define VFUNCS_H
 
-#include "tier0\platform.h"
+#include "tier0/platform.h"
 
 class WSEmptyClass {};
 
@@ -25,9 +25,14 @@ class CBaseCombatCharacter;
 
 extern void CBaseCombatCharacter_UpdateGlowEffect(CBaseCombatCharacter *pThisPtr);
 
+#if !defined( _POSIX )
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-//w32 only
+#else
+#include <sys/mman.h>
+//typedef unsigned long DWORD;
+#endif
+
 extern DWORD *HookVFunc(DWORD *vtable, int index, DWORD *newFunction);
 
 #endif
