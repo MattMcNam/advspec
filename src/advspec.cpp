@@ -22,7 +22,7 @@ inline bool DataCompare( const BYTE* pData, const BYTE* bSig, const char* szMask
 }
 
 // Finds a pattern at the specified address
-inline DWORD FindPattern ( DWORD dwAddress, DWORD dwSize, BYTE* pbSig, char* szMask )
+inline DWORD FindPattern ( DWORD dwAddress, DWORD dwSize, BYTE* pbSig, const char* szMask )
 {
     for( DWORD i = NULL; i < dwSize; i++ )
     {
