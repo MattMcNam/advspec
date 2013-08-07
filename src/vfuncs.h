@@ -17,10 +17,10 @@ class WSEmptyClass {};
 
 class CBaseCombatCharacter;
 
-#if defined(_LINUX) || defined(_OSX)
-#define Index_CBaseCombatCharacter_UpdateGlowEffect 281 //Out of date like woah
+#if defined( _POSIX )
+#define Index_CBaseCombatCharacter_UpdateGlowEffect 284 // client.so & .dylib
 #else
-#define Index_CBaseCombatCharacter_UpdateGlowEffect 221 //219
+#define Index_CBaseCombatCharacter_UpdateGlowEffect 221 // client.dll
 #endif
 
 extern void CBaseCombatCharacter_UpdateGlowEffect(CBaseCombatCharacter *pThisPtr);
