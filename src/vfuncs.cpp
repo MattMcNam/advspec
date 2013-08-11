@@ -10,7 +10,7 @@
 
 #include "vfuncs.h"
 
-void CBaseCombatCharacter_UpdateGlowEffect(CBaseCombatCharacter *pThisPtr) {
+void CBaseCombatCharacter_UpdateGlowEffect(C_BaseCombatCharacter *pThisPtr) {
 	//Magic from SourceMod
 	void **this_ptr = *(void ***)&pThisPtr;
 	void **vtable = *(void ***)pThisPtr;

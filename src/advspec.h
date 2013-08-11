@@ -26,6 +26,7 @@
 #define PLUGIN_DESC "Advanced Spectator Plugin b4"
 #define SHORT_DESC "AdvSpec b4"
 
+#include "cbase.h"
 #include "cdll_int.h"
 #include "icliententitylist.h"
 #include "icliententity.h"
@@ -33,16 +34,39 @@
 #include "edict.h"
 #include "igameresources.h"
 #include "igameevents.h"
+#include "vgui\IPanel.h"
+#include "vgui\ISurface.h"
+#include "ehandle.h"
 
-class CBaseCombatCharacter;
+//class CBaseCombatCharacter;
+class C_BaseCombatWeapon;
+typedef unsigned int VPANEL;
+typedef CHandle<C_BaseEntity> EHANDLE;
 
 // client.dll
 IBaseClientDLL* pClient;
 IClientEntityList* pEntityList;
+CBaseEntityList* g_pEntityList;
+
+// engine.dll
+IVEngineClient *pEngineClient;
+
+// vgui2.dll
+vgui::IPanel* pPanel;
+vgui::ISurface* pSurface;
+vgui::HFont m_font;
 
 Color *bluColor;
 Color *redColor;
-bool glow_enabled;
+
+struct medic_info_t {
+	int weaponID;
+	float charge;
+};
+medic_info_t bluMedic;
+medic_info_t redMedic;
+
+#define Round(x) ((x)>=0?(int)((x)+0.5):(int)((x)-0.5))
 
 class AdvSpecPlugin: public IServerPluginCallbacks, public IGameEventListener
 {

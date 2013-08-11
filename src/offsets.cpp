@@ -13,7 +13,10 @@
 
 int WSOffsets::pCTFPlayer__m_bGlowEnabled = 0;
 int WSOffsets::pCTFPlayer__m_iTeamNum = 0;
-int WSOffsets::pCTFPlayer__m_puiGlowindex = 0;
+int WSOffsets::pCTFPlayer__m_iClass = 0;
+int WSOffsets::pCTFPlayer__m_hMyWeapons = 0;
+int WSOffsets::pCWeaponMedigun__m_flChargeLevel = 0;
+int WSOffsets::pCWeaponMedigun__m_iItemDefinitionIndex = 0;
 
 //=================================================================================
 // Find the offsets for all stored NetVars
@@ -21,8 +24,11 @@ int WSOffsets::pCTFPlayer__m_puiGlowindex = 0;
 //=================================================================================
 void WSOffsets::PrepareOffsets() {
 	WSOffsets::pCTFPlayer__m_bGlowEnabled = WSOffsets::FindOffsetOfClassProp("CTFPlayer", "m_bGlowEnabled");
-	WSOffsets::pCTFPlayer__m_puiGlowindex = WSOffsets::pCTFPlayer__m_bGlowEnabled + sizeof(bool);
 	WSOffsets::pCTFPlayer__m_iTeamNum = WSOffsets::FindOffsetOfClassProp("CTFPlayer", "m_iTeamNum");
+	WSOffsets::pCTFPlayer__m_iClass = WSOffsets::FindOffsetOfClassProp("CTFPlayer", "m_iClass");
+	WSOffsets::pCTFPlayer__m_hMyWeapons = WSOffsets::FindOffsetOfArrayEnt("CTFPlayer", "m_hMyWeapons", 1);
+	WSOffsets::pCWeaponMedigun__m_flChargeLevel = WSOffsets::FindOffsetOfClassProp("CWeaponMedigun", "m_flChargeLevel");
+	WSOffsets::pCWeaponMedigun__m_iItemDefinitionIndex = WSOffsets::FindOffsetOfClassProp("CBaseCombatWeapon", "m_iItemDefinitionIndex");
 }
 
 //=================================================================================
@@ -47,6 +53,25 @@ int WSOffsets::FindOffsetOfClassProp(const char *className, const char *propName
 		}
 		sc = sc->m_pNext;
 	}
+	return 0;
+}
+
+int WSOffsets::FindOffsetOfArrayEnt(const char *classname, const char *arrayName, int element) {
+	ClientClass *cc = pClient->GetAllClasses();
+	while (cc) {
+		if (Q_strcmp(cc->GetName(), classname) == 0) {
+			RecvTable *rTable = cc->m_pRecvTable;
+			if (rTable) {
+				int offset = 0;
+				bool found = WSOffsets::CrawlForArrayEnt(rTable, arrayName, element, offset);
+				if (!found)
+					offset = 0;
+				return offset;
+			}
+		}
+		cc = cc->m_pNext;
+	}
+
 	return 0;
 }
 
@@ -92,6 +117,63 @@ bool WSOffsets::CrawlForPropOffset(RecvTable *sTable, const char *propName, int 
 			}
 		} else {
 			continue;
+		}
+
+		if (strcmp(sProp->GetName(), "000") == 0) //More array stuff from dumping function, may not be needed here
+			break;
+	}
+	return false;
+}
+
+bool WSOffsets::CrawlForArrayEnt(RecvTable *sTable, const char *propName, int element, int &offset) {
+	for (int i=0; i < sTable->GetNumProps(); i++) {
+		RecvProp *sProp = sTable->GetProp(i);
+		if (strcmp(sProp->GetName(),"000") == 0) //End of an array
+			continue;
+
+		//SendTable *sChildTable = sProp->GetDataTable();
+		RecvTable *sChildTable = sProp->GetDataTable();
+
+		//Check if it is an array, don't care for these atm so skip them
+		bool isArray = false;
+		if (sChildTable && sChildTable->GetNumProps() > 0) {
+			if (   !strcmp(sChildTable->GetProp(0)->GetName(), "000")
+				|| !strcmp(sChildTable->GetProp(0)->GetName(), "lengthproxy"))
+				isArray = true;
+		}
+
+		if (!isArray) {
+			//If we have our property, add to the offset and start returning
+			if (strcmp(sProp->GetName(), propName) == 0) {
+				offset += sProp->GetOffset();
+				return true;
+			}
+			
+			//If we find a subtable, search it for the property, 
+			//but keep current offset in case it isn't found here
+			if (sProp->GetType() == DPT_DataTable) {
+				int origOffset = offset;
+				offset += sProp->GetOffset();
+				bool found = WSOffsets::CrawlForArrayEnt(sChildTable, propName, element, offset);
+				if (found) {
+					return true;
+				} else {
+					offset = origOffset;
+				}
+			}
+		} else {
+			if (strcmp(sProp->GetName(), propName) != 0)
+				continue;
+
+			//We have our array
+			offset += sProp->GetOffset();
+
+			int elements = sProp->GetDataTable()->GetNumProps();
+			if (element < 0 || element >= elements)
+				return false;
+
+			offset += sProp->GetDataTable()->GetProp(element)->GetOffset();
+			return true;
 		}
 
 		if (strcmp(sProp->GetName(), "000") == 0) //More array stuff from dumping function, may not be needed here

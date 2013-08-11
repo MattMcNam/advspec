@@ -36,7 +36,7 @@ IGameResources* GetGameResources() {
 	//IGameResources* res;
     static DWORD funcadd = NULL;
     if( !funcadd )
-        funcadd = FindPattern( (DWORD) GetHandleOfModule( _T("client.dll") ), 0x2680C6, (PBYTE) "\xA1\x00\x00\x00\x00\x85\xC0\x74\x06\x05", "x????xxxxx" );
+        funcadd = FindPattern( (DWORD) GetHandleOfModule( _T("client") ), 0x2680C6, (PBYTE) "\xA1\x00\x00\x00\x00\x85\xC0\x74\x06\x05", "x????xxxxx" );
         
     typedef IGameResources* (*GGR_t) (void);
     GGR_t GGR = (GGR_t) funcadd;
@@ -46,13 +46,17 @@ IGameResources* GetGameResources() {
 static void outline_color( const CCommand& args );
 static ConCommand outline_color_command("advspec_outline_color", outline_color, "Sets the RGB color of the glow per team");
 static void toggle_outlines();
-static ConCommand toggle_outlines_command("advspec_toggle_outline", toggle_outlines, "Toggles glow effect on players");
+static ConCommand toggle_outlines_command("advspec_toggle_outline", toggle_outlines, "[Deprecated] Toggles glow effect on players");
 
-// Not implemented yet
-ConVar pov_outlines_hack("advspec_pov_outlines_hack", "0", 0, "Forces outlines to stay up-to-date in PoV demos by checking every frame, may cause a noticable performance hit!");
+ConVar outline_enabled("advspec_outline_enabled", "0", 0, "Enable glow outline around player models");
+ConVar pov_outline_enabled("advspec_pov_outline_enabled", "0", 0, "Forces outlines to stay up-to-date in POV demos by checking every frame, may cause a noticable performance hit!");
+ConVar medic_info_enabled("advspec_medic_info_enabled", "0", 0, "Shows which Medigun Medic's are using, and who has charge advantage");
+ConVar medic_info_offset_x("advspec_medic_info_offset_x", "5", 0, "How many pixels from the left is the Medic Info box");
+ConVar medic_info_offset_y("advspec_medic_info_offset_y", "5", 0, "How many pixels from the top is the Medic Info box");
 
 // CBaseCombatCharacter::GetGlowEffectColor(float &red, float &green, &float &blue);
 void (__fastcall *origGetGlowEffectColor)(void* thisptr, int edx, float*, float*, float*);
+void (__fastcall *origPaintTraverse)(void* thisptr, int edx, VPANEL, bool, bool);
 
 void __fastcall hookedGetGlowEffectColor( CBaseCombatCharacter *thisPtr, int edx, float &red, float &green, float &blue ) {
 	int team = *MakePtr(int*, thisPtr, WSOffsets::pCTFPlayer__m_iTeamNum);
@@ -70,9 +74,38 @@ void __fastcall hookedGetGlowEffectColor( CBaseCombatCharacter *thisPtr, int edx
 	}
 }
 
-void SetGlow() {
+const char* nameForWeaponID(int wID) {
+	switch(wID) {
+	case 29:  // Normal
+	case 211: // Strange
+	case 663: // Festive
+	case 796: // MvM
+	case 805: // ^
+	case 885: // ^
+	case 894: // ^
+	case 903: // ^
+	case 912: // ^
+	case 961: // ^
+	case 970: // ^
+		return "Medi Gun";
+	case 35:
+		return "Kritzkrieg";
+	case 411:
+		return "Quick-Fix";
+	case 998:
+		return "Vaccinator";
+	default:
+		return "Unknown!";
+	}
+}
+
+void UpdateEntities() {
 	int iEntCount = pEntityList->GetHighestEntityIndex();
 	IClientEntity *cEntity;
+
+	// Clear medic info
+	bluMedic.weaponID = 0;
+	redMedic.weaponID = 0;
 
 	for (int i = 0; i < iEntCount; i++) {
 		cEntity = pEntityList->GetClientEntity(i);
@@ -81,16 +114,111 @@ void SetGlow() {
 		if (cEntity == NULL || !(GetGameResources()->IsConnected(i)))
 			continue;
 
-		//Hook GetGlowEffectColor if it hasn't been done
-		//TODO: Learn Casual's VMTHooks class
-		if (origGetGlowEffectColor == NULL) {
-			origGetGlowEffectColor = (void (__fastcall *)(void *, int, float*, float*, float*))
-				HookVFunc(*(DWORD**)cEntity, Index_CBaseCombatCharacter_UpdateGlowEffect-1, 
-				(DWORD*) &hookedGetGlowEffectColor);
+		if (outline_enabled.GetBool()) {
+			// Hook GetGlowEffectColor if it hasn't been done
+			if (origGetGlowEffectColor == NULL) {
+				origGetGlowEffectColor = (void (__fastcall *)(void *, int, float*, float*, float*))
+					HookVFunc(*(DWORD**)cEntity, Index_CBaseCombatCharacter_UpdateGlowEffect-1, 
+					(DWORD*) &hookedGetGlowEffectColor);
+			}
+
+			*MakePtr(bool*, cEntity, WSOffsets::pCTFPlayer__m_bGlowEnabled) = outline_enabled.GetBool();
+			CBaseCombatCharacter_UpdateGlowEffect((C_BaseCombatCharacter*)cEntity);
 		}
 
-		*MakePtr(bool*, cEntity, WSOffsets::pCTFPlayer__m_bGlowEnabled) = glow_enabled;
-		CBaseCombatCharacter_UpdateGlowEffect((CBaseCombatCharacter*)cEntity);
+		if (medic_info_enabled.GetBool()) {
+			int playerClass = *MakePtr(int*, cEntity, WSOffsets::pCTFPlayer__m_iClass);
+
+			// Medic class index is 5 internally
+			if (playerClass == 5) {
+				CBaseHandle* hMedigun = *MakePtr(CBaseHandle**, cEntity, WSOffsets::pCTFPlayer__m_hMyWeapons);
+
+				unsigned int index = reinterpret_cast<EHANDLE*>( (char*)cEntity + WSOffsets::pCTFPlayer__m_hMyWeapons)->GetEntryIndex();
+
+				IClientEntity* medigun = pEntityList->GetClientEntity(index);
+
+				if (medigun) {
+					float uber = *MakePtr(float*, medigun, WSOffsets::pCWeaponMedigun__m_flChargeLevel);
+					int playerTeam = *MakePtr(int*, cEntity, WSOffsets::pCTFPlayer__m_iTeamNum);
+					int gunID = *MakePtr(int*, medigun, WSOffsets::pCWeaponMedigun__m_iItemDefinitionIndex);
+
+					if (playerTeam == 3) {
+						bluMedic.weaponID = gunID;
+						bluMedic.charge = uber;
+					} else {
+						redMedic.weaponID = gunID;
+						redMedic.charge = uber;
+					}
+				}
+			}
+		}
+	}
+}
+
+void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  VPANEL vguiPanel, bool forceRepaint, bool allowForce = true ) {
+	origPaintTraverse(thisPtr, edx, vguiPanel, forceRepaint, allowForce);
+
+	if (pov_outline_enabled.GetBool() || medic_info_enabled.GetBool()) {
+		UpdateEntities();
+	}
+
+	const char* panelName = pPanel->GetName(vguiPanel);
+	if (panelName[0] == 'M' && panelName[3] == 'S' &&
+		panelName[9] == 'T' && panelName[12] == 'P')
+	{
+
+		if (pEngineClient->IsDrawingLoadingImage() || !pEngineClient->IsInGame( ) || !pEngineClient->IsConnected() || pEngineClient->Con_IsVisible( ))
+			return;
+
+		if (medic_info_enabled.GetBool() && 
+			bluMedic.weaponID > 0 && 
+			redMedic.weaponID > 0) 
+		{
+			pSurface->DrawSetTextFont(m_font);
+			pSurface->DrawSetTextColor( 255, 255, 255, 255 );
+			wchar_t wbuf[1024] = { '\0' };
+
+			int offX = medic_info_offset_x.GetInt();
+			int offY = medic_info_offset_y.GetInt();
+
+			pSurface->DrawSetColor(32, 32, 32, 200);
+			pSurface->DrawFilledRect(offX, offY, offX + 155, offY + 50);
+			
+			pSurface->DrawSetTextPos(offX + 2, offY + 2);
+			wsprintfW( wbuf, L"%S", "Medic Info" );
+			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
+
+			pSurface->DrawSetTextColor( 88, 133, 162, 255 );
+			pSurface->DrawSetTextPos(offX + 2, offY + 17);
+			wsprintfW( wbuf, L"%S", nameForWeaponID(bluMedic.weaponID) );
+			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
+			pSurface->DrawSetTextPos(offX + 77, offY + 17);
+			wsprintfW( wbuf, L"%d%%", Round(bluMedic.charge*100.0f) );
+			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
+
+			pSurface->DrawSetTextColor( 184, 56, 59, 255 );
+			pSurface->DrawSetTextPos(offX + 2, offY + 32);
+			wsprintfW( wbuf, L"%S", nameForWeaponID(redMedic.weaponID) );
+			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
+			pSurface->DrawSetTextPos(offX + 77, offY + 32);
+			wsprintfW( wbuf, L"%d%%", Round(redMedic.charge*100.0f) );
+			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
+
+			int advantage = 0;
+			if (bluMedic.charge > redMedic.charge) {
+				advantage = Round(bluMedic.charge*100.0f) - Round(redMedic.charge*100.0f);
+				pSurface->DrawSetTextPos(offX + 114, offY + 17);
+			} else {
+				advantage = Round(redMedic.charge*100.0f) - Round(bluMedic.charge*100.0f);
+				pSurface->DrawSetTextPos(offX + 114, offY + 32);
+			}
+
+			if (advantage > 0) {
+				pSurface->DrawSetTextColor( 255, 255, 255, 255 );
+				wsprintfW( wbuf, L"+%d%%", advantage );
+				pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
+			}
+		}
 	}
 }
 
@@ -110,15 +238,41 @@ bool AdvSpecPlugin::Load( CreateInterfaceFn interfaceFactory, CreateInterfaceFn 
 {
 	ConnectTier1Libraries( &interfaceFactory, 1 );
 
-	void* hmClient = GetHandleOfModule( "client.dll" );
-	CreateInterfaceFn pfnClient = (CreateInterfaceFn) GetFuncAddress( hmClient, "CreateInterface" );
-	pClient			= (IBaseClientDLL*)		pfnClient( "VClient017",			NULL );
-	pEntityList		= (IClientEntityList*)	pfnClient( "VClientEntityList003",	NULL );
+	void* hmClient = GetHandleOfModule("client");
+	CreateInterfaceFn pfnClient = (CreateInterfaceFn) GetFuncAddress(hmClient, "CreateInterface");
+	pClient     = (IBaseClientDLL*)    pfnClient("VClient017", NULL);
+	pEntityList = (IClientEntityList*) pfnClient("VClientEntityList003", NULL);
 
+	void* hmEngine = GetHandleOfModule("engine");
+	CreateInterfaceFn pfnEngine = (CreateInterfaceFn) GetFuncAddress(hmEngine, "CreateInterface");
+	pEngineClient = (IVEngineClient*) pfnEngine("VEngineClient013", NULL);
+
+	void* hmVGUI2          = GetHandleOfModule("vgui2");
+	void* hmVGUIMatSurface = GetHandleOfModule("vguimatsurface");
+	CreateInterfaceFn pfnVGUI2          = (CreateInterfaceFn) GetFuncAddress(hmVGUI2, "CreateInterface");
+	CreateInterfaceFn pfnVGUIMatSurface = (CreateInterfaceFn) GetFuncAddress(hmVGUIMatSurface, "CreateInterface");
+
+	pPanel   = (vgui::IPanel*)   pfnVGUI2("VGUI_Panel009", NULL);
+	pSurface = (vgui::ISurface*) pfnVGUIMatSurface("VGUI_Surface030", NULL);
+
+	//Set up default font
+	m_font = pSurface->CreateFont();
+	pSurface->SetFontGlyphSet(m_font, "Arial", 15, 100, 0, 0, 0x200);
+
+	//Hook PaintTraverse
+	origPaintTraverse = (void (__fastcall *)(void *, int, VPANEL, bool, bool))
+		HookVFunc(*(DWORD**)pPanel, 41, (DWORD*) &hookedPaintTraverse);
+
+	// Get offsets
 	WSOffsets::PrepareOffsets();
 
+	// Set colours
 	bluColor = new Color( 88, 133, 162, 255);
 	redColor = new Color(184,  56,  59, 255);
+
+	// Clear medic info
+	bluMedic.weaponID = 0;
+	redMedic.weaponID = 0;
 
 	//Everything seems ok!
 	Msg("%s loaded!\n", PLUGIN_DESC);
@@ -155,14 +309,14 @@ void AdvSpecPlugin::OnEdictAllocated( edict_t *edict ){}
 void AdvSpecPlugin::OnEdictFreed( const edict_t *edict ){}
 
 static void toggle_outlines() {
-	glow_enabled = !glow_enabled;
+	outline_enabled.SetValue(!outline_enabled.GetBool());
 	
-	if (glow_enabled)
+	if (outline_enabled.GetBool())
 		Msg("[AS] Player outlines enabled\n");
 	else
 		Msg("[AS] Player outlines disabled\n");
 
-	SetGlow();
+	UpdateEntities();
 }
 
 __inline void PrintOutlineColorCommandUsage() {
@@ -209,5 +363,5 @@ static void outline_color( const CCommand& args )
 	else
 		bluColor->SetColor(red, green, blue, 255);
 
-	SetGlow();
+	UpdateEntities();
 }
