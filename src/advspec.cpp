@@ -114,17 +114,15 @@ void UpdateEntities() {
 		if (cEntity == NULL || !(GetGameResources()->IsConnected(i)))
 			continue;
 
-		if (outline_enabled.GetBool()) {
-			// Hook GetGlowEffectColor if it hasn't been done
-			if (origGetGlowEffectColor == NULL) {
-				origGetGlowEffectColor = (void (__fastcall *)(void *, int, float*, float*, float*))
-					HookVFunc(*(DWORD**)cEntity, Index_CBaseCombatCharacter_UpdateGlowEffect-1, 
-					(DWORD*) &hookedGetGlowEffectColor);
-			}
-
-			*MakePtr(bool*, cEntity, WSOffsets::pCTFPlayer__m_bGlowEnabled) = outline_enabled.GetBool();
-			CBaseCombatCharacter_UpdateGlowEffect((C_BaseCombatCharacter*)cEntity);
+		// Hook GetGlowEffectColor if it hasn't been done
+		if (origGetGlowEffectColor == NULL) {
+			origGetGlowEffectColor = (void (__fastcall *)(void *, int, float*, float*, float*))
+				HookVFunc(*(DWORD**)cEntity, Index_CBaseCombatCharacter_UpdateGlowEffect-1, 
+				(DWORD*) &hookedGetGlowEffectColor);
 		}
+
+		*MakePtr(bool*, cEntity, WSOffsets::pCTFPlayer__m_bGlowEnabled) = outline_enabled.GetBool();
+		CBaseCombatCharacter_UpdateGlowEffect((C_BaseCombatCharacter*)cEntity);
 
 		if (medic_info_enabled.GetBool()) {
 			int playerClass = *MakePtr(int*, cEntity, WSOffsets::pCTFPlayer__m_iClass);
