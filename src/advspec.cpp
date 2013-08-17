@@ -48,7 +48,8 @@ static ConCommand outline_color_command("advspec_outline_color", outline_color, 
 static void toggle_outlines();
 static ConCommand toggle_outlines_command("advspec_toggle_outline", toggle_outlines, "[Deprecated] Toggles glow effect on players");
 
-ConVar outline_enabled("advspec_outline_enabled", "0", 0, "Enable glow outline around player models");
+static void outline_enabled_change(IConVar *var, const char *pOldValue, float flOldValue);
+ConVar outline_enabled("advspec_outline_enabled", "0", 0, "Enable glow outline around player models", outline_enabled_change);
 ConVar pov_outline_enabled("advspec_pov_outline_enabled", "0", 0, "Forces outlines to stay up-to-date in POV demos by checking every frame, may cause a noticable performance hit!");
 ConVar medic_info_enabled("advspec_medic_info_enabled", "0", 0, "Shows which Medigun Medic's are using, and who has charge advantage");
 ConVar medic_info_offset_x("advspec_medic_info_offset_x", "5", 0, "How many pixels from the left is the Medic Info box");
@@ -314,6 +315,10 @@ static void toggle_outlines() {
 	else
 		Msg("[AS] Player outlines disabled\n");
 
+	UpdateEntities();
+}
+
+static void outline_enabled_change(IConVar *var, const char *pOldValue, float flOldValue) {
 	UpdateEntities();
 }
 
