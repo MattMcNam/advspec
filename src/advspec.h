@@ -23,8 +23,8 @@
 #include "vfuncs.h"
 #include "icvar.h"
 
-#define PLUGIN_DESC "Advanced Spectator Plugin b4"
-#define SHORT_DESC "AdvSpec b4"
+#define PLUGIN_DESC "Advanced Spectator Plugin b4.1"
+#define SHORT_DESC "AdvSpec b4.1"
 
 #include "cbase.h"
 #include "cdll_int.h"
