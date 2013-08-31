@@ -23,8 +23,12 @@
 #include "vfuncs.h"
 #include "icvar.h"
 
-#define PLUGIN_DESC "Advanced Spectator Plugin b4.1"
-#define SHORT_DESC "AdvSpec b4.1"
+#define PLUGIN_DESC "Advanced Spectator Plugin b4.1.1"
+#define SHORT_DESC "AdvSpec b4.1.1"
+
+// Custom medic info displays for various orgs
+//#define MEDIC_VANILLATV // Requires AlternateGothic & materials
+//#define MEDIC_OMPHUD    // Shared by TFTV & BOTV, requires Futura
 
 #include "cbase.h"
 #include "cdll_int.h"

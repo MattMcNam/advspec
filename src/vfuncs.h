@@ -23,7 +23,7 @@ class WSEmptyClass {};
 #if defined( _POSIX )
 #define Index_CBaseCombatCharacter_UpdateGlowEffect 284 // client.so & .dylib
 #else
-#define Index_CBaseCombatCharacter_UpdateGlowEffect 221 // client.dll
+#define Index_CBaseCombatCharacter_UpdateGlowEffect 222 // client.dll
 #endif
 
 extern void CBaseCombatCharacter_UpdateGlowEffect(C_BaseCombatCharacter *pThisPtr);
