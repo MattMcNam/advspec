@@ -38,8 +38,8 @@
 #include "edict.h"
 #include "igameresources.h"
 #include "igameevents.h"
-#include "vgui\IPanel.h"
-#include "vgui\ISurface.h"
+#include "vgui/IPanel.h"
+#include "vgui/ISurface.h"
 #include "ehandle.h"
 
 //class CBaseCombatCharacter;
