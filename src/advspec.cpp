@@ -48,6 +48,11 @@ static ConCommand outline_color_command("advspec_outline_color", outline_color, 
 static void toggle_outlines();
 static ConCommand toggle_outlines_command("advspec_toggle_outline", toggle_outlines, "[Deprecated] Toggles glow effect on players");
 
+#if defined(DEBUG)
+static void scaled_value(const CCommand& args);
+static ConCommand scaled_value_command("advspec_dbg_scaled_value", scaled_value, "Prints scaled value");
+#endif
+
 static void outline_enabled_change(IConVar *var, const char *pOldValue, float flOldValue);
 ConVar outline_enabled("advspec_outline_enabled", "0", 0, "Enable glow outline around player models", outline_enabled_change);
 ConVar pov_outline_enabled("advspec_pov_outline_enabled", "0", 0, "Forces outlines to stay up-to-date in POV demos by checking every frame, may cause a noticable performance hit!");
@@ -118,7 +123,7 @@ void UpdateEntities() {
 		// Hook GetGlowEffectColor if it hasn't been done
 		if (origGetGlowEffectColor == NULL) {
 			origGetGlowEffectColor = (void (__fastcall *)(void *, int, float*, float*, float*))
-				HookVFunc(*(DWORD**)cEntity, Index_CBaseCombatCharacter_UpdateGlowEffect-1, 
+				HookVFunc(*(DWORD**)cEntity, Index_UpdateGlowEffect-1, 
 				(DWORD*) &hookedGetGlowEffectColor);
 		}
 
@@ -130,8 +135,6 @@ void UpdateEntities() {
 
 			// Medic class index is 5 internally
 			if (playerClass == 5) {
-				CBaseHandle* hMedigun = *MakePtr(CBaseHandle**, cEntity, WSOffsets::pCTFPlayer__m_hMyWeapons);
-
 				unsigned int index = reinterpret_cast<EHANDLE*>( (char*)cEntity + WSOffsets::pCTFPlayer__m_hMyWeapons)->GetEntryIndex();
 
 				IClientEntity* medigun = pEntityList->GetClientEntity(index);
@@ -154,9 +157,11 @@ void UpdateEntities() {
 	}
 }
 
-void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  VPANEL vguiPanel, bool forceRepaint, bool allowForce = true ) {
-	origPaintTraverse(thisPtr, edx, vguiPanel, forceRepaint, allowForce);
+#if defined(MEDIC_OMP) || defined(MEDIC_TFTV) || defined(MEDIC_VTV)
+#include "medic_private.h"
+#endif
 
+void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  VPANEL vguiPanel, bool forceRepaint, bool allowForce = true ) {
 	if (pov_outline_enabled.GetBool() || medic_info_enabled.GetBool()) {
 		UpdateEntities();
 	}
@@ -165,7 +170,7 @@ void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  VPANEL vgu
 	if (panelName[0] == 'M' && panelName[3] == 'S' &&
 		panelName[9] == 'T' && panelName[12] == 'P')
 	{
-
+		origPaintTraverse(thisPtr, edx, vguiPanel, forceRepaint, allowForce);
 		if (pEngineClient->IsDrawingLoadingImage() || !pEngineClient->IsInGame( ) || !pEngineClient->IsConnected() || pEngineClient->Con_IsVisible( ))
 			return;
 
@@ -175,32 +180,46 @@ void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  VPANEL vgu
 		{
 			pSurface->DrawSetTextFont(m_font);
 			pSurface->DrawSetTextColor( 255, 255, 255, 255 );
-			wchar_t wbuf[1024] = { '\0' };
 
 			int offX = medic_info_offset_x.GetInt();
 			int offY = medic_info_offset_y.GetInt();
 
+			int offXs = SCALED(offX);
+			int offYs = SCALED(offY);
+
+			// Get font
+			if (m_font == 0) {
+				vgui::HScheme scheme = pScheme->GetScheme("ClientScheme");
+				m_font = pScheme->GetIScheme(scheme)->GetFont(fontName, true);
+			}
+
+			// These methods are similar to the chunck of code below, just styled for each HUD
+			// User-defined styles will be coming in v1.0
+#if defined(MEDIC_OMP)
+			DrawMedicOmp(offX, offY, pSurface);
+#elif defined(MEDIC_VTV)
+			DrawMedicVTV(offX, offY, pSurface);
+#elif defined(MEDIC_TFTV)
+			DrawMedicTFTV(offX, offY, pSurface);
+#else
+			wchar_t wbuf[1024] = { '\0' };
 			pSurface->DrawSetColor(32, 32, 32, 200);
 			pSurface->DrawFilledRect(offX, offY, offX + 155, offY + 50);
-			
-			pSurface->DrawSetTextPos(offX + 2, offY + 2);
-			wsprintfW( wbuf, L"%S", "Medic Info" );
-			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
 
-			pSurface->DrawSetTextColor( 88, 133, 162, 255 );
+			pSurface->DrawSetTextColor(88, 133, 162, 255);
 			pSurface->DrawSetTextPos(offX + 2, offY + 17);
-			wsprintfW( wbuf, L"%S", nameForWeaponID(bluMedic.weaponID) );
+			swprintf( wbuf, 1024, L"%S", nameForWeaponID(bluMedic.weaponID) );
 			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
 			pSurface->DrawSetTextPos(offX + 77, offY + 17);
-			wsprintfW( wbuf, L"%d%%", Round(bluMedic.charge*100.0f) );
+			swprintf( wbuf, 1024, L"%d%%", Round(bluMedic.charge*100.0f) );
 			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
 
 			pSurface->DrawSetTextColor( 184, 56, 59, 255 );
 			pSurface->DrawSetTextPos(offX + 2, offY + 32);
-			wsprintfW( wbuf, L"%S", nameForWeaponID(redMedic.weaponID) );
+			swprintf( wbuf, 1024, L"%S", nameForWeaponID(redMedic.weaponID) );
 			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
 			pSurface->DrawSetTextPos(offX + 77, offY + 32);
-			wsprintfW( wbuf, L"%d%%", Round(redMedic.charge*100.0f) );
+			swprintf( wbuf, 1024, L"%d%%", Round(redMedic.charge*100.0f) );
 			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
 
 			int advantage = 0;
@@ -214,10 +233,13 @@ void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  VPANEL vgu
 
 			if (advantage > 0) {
 				pSurface->DrawSetTextColor( 255, 255, 255, 255 );
-				wsprintfW( wbuf, L"+%d%%", advantage );
+				swprintf( wbuf, 1024, L"+%d%%", advantage );
 				pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
 			}
+#endif
 		}
+	} else {
+		origPaintTraverse(thisPtr, edx, vguiPanel, forceRepaint, allowForce);
 	}
 }
 
@@ -252,15 +274,34 @@ bool AdvSpecPlugin::Load( CreateInterfaceFn interfaceFactory, CreateInterfaceFn 
 	CreateInterfaceFn pfnVGUIMatSurface = (CreateInterfaceFn) GetFuncAddress(hmVGUIMatSurface, "CreateInterface");
 
 	pPanel   = (vgui::IPanel*)   pfnVGUI2("VGUI_Panel009", NULL);
+	pScheme  = (vgui::ISchemeManager*) pfnVGUI2("VGUI_Scheme010", NULL);
 	pSurface = (vgui::ISurface*) pfnVGUIMatSurface("VGUI_Surface030", NULL);
 
-	//Set up default font
-	m_font = pSurface->CreateFont();
-	pSurface->SetFontGlyphSet(m_font, "Arial", 15, 100, 0, 0, 0x200);
+	m_font = 0;
+#if defined(MEDIC_OMP)
+	fontName = "FuturaHeavy11";
+#elif defined(MEDIC_VTV)
+	fontName = "HudGothic3Font";
+	m_iTextureRed = pSurface->CreateNewTextureID();
+	m_iTextureBlu = pSurface->CreateNewTextureID();
+	pSurface->DrawSetTextureId(m_iTextureRed, "HUD/advspec_med_red", 0, false);
+	pSurface->DrawSetTextureId(m_iTextureBlu, "HUD/advspec_med_blu", 0, false);
+#elif defined(MEDIC_TFTV)
+	m_healthFont = 0;
+	fontName = "TFTV12";
+	m_iTextureRed = pSurface->CreateNewTextureID();
+	m_iTextureBlu = pSurface->CreateNewTextureID();
+	m_iTextureHealth = pSurface->CreateNewTextureID();
+	pSurface->DrawSetTextureFile(m_iTextureRed, "HUD/color_panel_red", 0, false);
+	pSurface->DrawSetTextureFile(m_iTextureBlu, "HUD/color_panel_blu", 0, false);
+	pSurface->DrawSetTextureFile(m_iTextureHealth, "HUD/health_color", 0, false);
+#else
+	fontName = "Default";
+#endif
 
 	//Hook PaintTraverse
 	origPaintTraverse = (void (__fastcall *)(void *, int, VPANEL, bool, bool))
-		HookVFunc(*(DWORD**)pPanel, 41, (DWORD*) &hookedPaintTraverse);
+		HookVFunc(*(DWORD**)pPanel, Index_PaintTraverse, (DWORD*) &hookedPaintTraverse);
 
 	// Get offsets
 	WSOffsets::PrepareOffsets();
@@ -325,6 +366,14 @@ static void outline_enabled_change(IConVar *var, const char *pOldValue, float fl
 __inline void PrintOutlineColorCommandUsage() {
 	Msg("Usage: advspec_outline_color [r|b] [0-255] [0-255] [0-255]\n       Color values in Red, Green, Blue order\n");
 }
+
+#if defined(DEBUG)
+static void scaled_value(const CCommand& args)
+{
+	int arg = atoi(args.Arg(1));
+	Msg("%d -> %d\n", arg, SCALED(arg));
+}
+#endif
 
 static void outline_color( const CCommand& args )
 {

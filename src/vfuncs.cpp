@@ -14,7 +14,7 @@ void CBaseCombatCharacter_UpdateGlowEffect(C_BaseCombatCharacter *pThisPtr) {
 	//Magic from SourceMod
 	void **this_ptr = *(void ***)&pThisPtr;
 	void **vtable = *(void ***)pThisPtr;
-	void *func = vtable[Index_CBaseCombatCharacter_UpdateGlowEffect];
+	void *func = vtable[Index_UpdateGlowEffect];
 
 	union {
 		void (WSEmptyClass::*mfpnew)();

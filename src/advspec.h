@@ -23,12 +23,16 @@
 #include "vfuncs.h"
 #include "icvar.h"
 
-#define PLUGIN_DESC "Advanced Spectator Plugin b4.1.1"
-#define SHORT_DESC "AdvSpec b4.1.1"
+#define PLUGIN_DESC "Advanced Spectator Plugin b4.3"
+#define SHORT_DESC "AdvSpec b4.3"
 
 // Custom medic info displays for various orgs
-//#define MEDIC_VANILLATV // Requires AlternateGothic & materials
-//#define MEDIC_OMPHUD    // Shared by TFTV & BOTV, requires Futura
+// All require medic_private.h
+//#define MEDIC_VTV		// VTV - requires full hud
+//#define MEDIC_OMP		// BOTV & EXTV - requires font
+//#define MEDIC_TFTV  	// TFTV - requires full hud
+
+#define SCALED(normalValue) pScheme->GetProportionalScaledValue(normalValue)
 
 #include "cbase.h"
 #include "cdll_int.h"
@@ -40,6 +44,7 @@
 #include "igameevents.h"
 #include "vgui/IPanel.h"
 #include "vgui/ISurface.h"
+#include "vgui/IScheme.h"
 #include "ehandle.h"
 
 //class CBaseCombatCharacter;
@@ -50,7 +55,6 @@ typedef CHandle<C_BaseEntity> EHANDLE;
 // client.dll
 IBaseClientDLL* pClient;
 IClientEntityList* pEntityList;
-CBaseEntityList* g_pEntityList;
 
 // engine.dll
 IVEngineClient *pEngineClient;
@@ -58,7 +62,20 @@ IVEngineClient *pEngineClient;
 // vgui2.dll
 vgui::IPanel* pPanel;
 vgui::ISurface* pSurface;
+vgui::ISchemeManager* pScheme;
 vgui::HFont m_font;
+
+#if defined(MEDIC_VTV) || defined(MEDIC_TFTV)
+int m_iTextureBlu;
+int m_iTextureRed;
+#endif
+
+#if defined(MEDIC_TFTV)
+vgui::HFont m_healthFont;
+int m_iTextureHealth;
+#endif
+
+char *fontName;
 
 Color *bluColor;
 Color *redColor;

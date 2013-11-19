@@ -18,12 +18,16 @@
 
 class WSEmptyClass {};
 
-//class CBaseCombatCharacter;
-
-#if defined( _POSIX )
-#define Index_CBaseCombatCharacter_UpdateGlowEffect 284 // client.so & .dylib
-#else
-#define Index_CBaseCombatCharacter_UpdateGlowEffect 222 // client.dll
+#if defined (_POSIX) // client.dylib
+enum vfuncIndices {
+	Index_UpdateGlowEffect = 285,
+	Index_PaintTraverse = 42
+};
+#else // client.dll
+enum vfuncIndices {
+	Index_UpdateGlowEffect = 222,
+	Index_PaintTraverse = 41
+};
 #endif
 
 extern void CBaseCombatCharacter_UpdateGlowEffect(C_BaseCombatCharacter *pThisPtr);
