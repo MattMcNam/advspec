@@ -53,12 +53,15 @@ static void scaled_value(const CCommand& args);
 static ConCommand scaled_value_command("advspec_dbg_scaled_value", scaled_value, "Prints scaled value");
 #endif
 
+static void reload_overlay(const CCommand& args);
+static ConCommand reload_overlay_cmd("advspec_reload_overlay", reload_overlay, "Reloads the UI overlay");
+
 static void outline_enabled_change(IConVar *var, const char *pOldValue, float flOldValue);
 ConVar outline_enabled("advspec_outline_enabled", "0", 0, "Enable glow outline around player models", outline_enabled_change);
 ConVar pov_outline_enabled("advspec_pov_outline_enabled", "0", 0, "Forces outlines to stay up-to-date in POV demos by checking every frame, may cause a noticable performance hit!");
 ConVar medic_info_enabled("advspec_medic_info_enabled", "0", 0, "Shows which Medigun Medic's are using, and who has charge advantage");
-ConVar medic_info_offset_x("advspec_medic_info_offset_x", "5", 0, "How many pixels from the left is the Medic Info box");
-ConVar medic_info_offset_y("advspec_medic_info_offset_y", "5", 0, "How many pixels from the top is the Medic Info box");
+ConVar medic_info_offset_x("advspec_medic_info_offset_x", "0", 0, "How many pixels from the left is the Medic Info box");
+ConVar medic_info_offset_y("advspec_medic_info_offset_y", "230", 0, "How many pixels from the top is the Medic Info box");
 
 // CBaseCombatCharacter::GetGlowEffectColor(float &red, float &green, &float &blue);
 void (__fastcall *origGetGlowEffectColor)(void* thisptr, int edx, float*, float*, float*);
@@ -162,6 +165,9 @@ void UpdateEntities() {
 #endif
 
 void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  VPANEL vguiPanel, bool forceRepaint, bool allowForce = true ) {
+	// Let TF2 draw it's stuff first, then AdvSpec's overlay
+	origPaintTraverse(thisPtr, edx, vguiPanel, forceRepaint, allowForce);
+
 	if (pov_outline_enabled.GetBool() || medic_info_enabled.GetBool()) {
 		UpdateEntities();
 	}
@@ -170,77 +176,48 @@ void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  VPANEL vgu
 	if (panelName[0] == 'M' && panelName[3] == 'S' &&
 		panelName[9] == 'T' && panelName[12] == 'P')
 	{
-		origPaintTraverse(thisPtr, edx, vguiPanel, forceRepaint, allowForce);
+		// TODO: string search only once then store panel id/address/something
 		if (pEngineClient->IsDrawingLoadingImage() || !pEngineClient->IsInGame( ) || !pEngineClient->IsConnected() || pEngineClient->Con_IsVisible( ))
 			return;
 
-		if (medic_info_enabled.GetBool() && 
+		if (medic_info_enabled.GetBool() /*&& 
 			bluMedic.weaponID > 0 && 
-			redMedic.weaponID > 0) 
+			redMedic.weaponID > 0*/) 
 		{
-			pSurface->DrawSetTextFont(m_font);
-			pSurface->DrawSetTextColor( 255, 255, 255, 255 );
+			m_WebCore->Update();
+			m_BitmapSurface = (Awesomium::BitmapSurface*)m_WebView->surface();
+			if (m_BitmapSurface && m_iNearestPowerWidth + m_iNearestPowerHeight > 0) {
+				// Need to convert Awesomium BGRA to RGBA, so make a temp buffer
+				const int bytesPerPixel = 4; // TODO: Define in header
+				unsigned char* buffer = new unsigned char[m_iNearestPowerWidth * m_iNearestPowerHeight * bytesPerPixel];
+				m_BitmapSurface->CopyTo(buffer, m_BitmapSurface->width() * bytesPerPixel, bytesPerPixel, true, false);
 
-			int offX = medic_info_offset_x.GetInt();
-			int offY = medic_info_offset_y.GetInt();
+				pSurface->DrawSetTextureRGBA(m_iAwesomiumTextureId, buffer, m_BitmapSurface->width(), m_BitmapSurface->height(), true, true);
 
-			int offXs = SCALED(offX);
-			int offYs = SCALED(offY);
-
-			// Get font
-			if (m_font == 0) {
-				vgui::HScheme scheme = pScheme->GetScheme("ClientScheme");
-				m_font = pScheme->GetIScheme(scheme)->GetFont(fontName, true);
+				pSurface->DrawSetTexture(m_iAwesomiumTextureId);
+				pSurface->DrawSetColor(255, 255, 255, 255);
+				float scalerW = float(m_BitmapSurface->width()) / float(m_iNearestPowerWidth);
+				float scalerT = float(m_BitmapSurface->height()) / float(m_iNearestPowerHeight);
+				pSurface->DrawTexturedSubRect(0, 0, m_BitmapSurface->width(), m_BitmapSurface->height(), 0.0f, 0.0f, scalerW, scalerT);
+				
+				// Cleanup RGBA conversion
+				delete buffer;
 			}
-
-			// These methods are similar to the chunck of code below, just styled for each HUD
-			// User-defined styles will be coming in v1.0
-#if defined(MEDIC_OMP)
-			DrawMedicOmp(offX, offY, pSurface);
-#elif defined(MEDIC_VTV)
-			DrawMedicVTV(offX, offY, pSurface);
-#elif defined(MEDIC_TFTV)
-			DrawMedicTFTV(offX, offY, pSurface);
-#else
-			wchar_t wbuf[1024] = { '\0' };
-			pSurface->DrawSetColor(32, 32, 32, 200);
-			pSurface->DrawFilledRect(offX, offY, offX + 155, offY + 50);
-
-			pSurface->DrawSetTextColor(88, 133, 162, 255);
-			pSurface->DrawSetTextPos(offX + 2, offY + 17);
-			swprintf( wbuf, 1024, L"%S", nameForWeaponID(bluMedic.weaponID) );
-			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
-			pSurface->DrawSetTextPos(offX + 77, offY + 17);
-			swprintf( wbuf, 1024, L"%d%%", Round(bluMedic.charge*100.0f) );
-			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
-
-			pSurface->DrawSetTextColor( 184, 56, 59, 255 );
-			pSurface->DrawSetTextPos(offX + 2, offY + 32);
-			swprintf( wbuf, 1024, L"%S", nameForWeaponID(redMedic.weaponID) );
-			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
-			pSurface->DrawSetTextPos(offX + 77, offY + 32);
-			swprintf( wbuf, 1024, L"%d%%", Round(redMedic.charge*100.0f) );
-			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
-
-			int advantage = 0;
-			if (bluMedic.charge > redMedic.charge) {
-				advantage = Round(bluMedic.charge*100.0f) - Round(redMedic.charge*100.0f);
-				pSurface->DrawSetTextPos(offX + 114, offY + 17);
-			} else {
-				advantage = Round(redMedic.charge*100.0f) - Round(bluMedic.charge*100.0f);
-				pSurface->DrawSetTextPos(offX + 114, offY + 32);
-			}
-
-			if (advantage > 0) {
-				pSurface->DrawSetTextColor( 255, 255, 255, 255 );
-				swprintf( wbuf, 1024, L"+%d%%", advantage );
-				pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
-			}
-#endif
 		}
-	} else {
-		origPaintTraverse(thisPtr, edx, vguiPanel, forceRepaint, allowForce);
 	}
+}
+
+int NearestPowerOfTwo(int v)
+{
+        // http://stackoverflow.com/questions/466204/rounding-off-to-nearest-power-of-2
+        v--;
+        v |= v >> 1;
+        v |= v >> 2;
+        v |= v >> 4;
+        v |= v >> 8;
+        v |= v >> 16;
+        v++;
+        return v;
 }
 
 // The plugin is a static singleton that is exported as an interface
@@ -274,30 +251,34 @@ bool AdvSpecPlugin::Load( CreateInterfaceFn interfaceFactory, CreateInterfaceFn 
 	CreateInterfaceFn pfnVGUIMatSurface = (CreateInterfaceFn) GetFuncAddress(hmVGUIMatSurface, "CreateInterface");
 
 	pPanel   = (vgui::IPanel*)   pfnVGUI2("VGUI_Panel009", NULL);
-	pScheme  = (vgui::ISchemeManager*) pfnVGUI2("VGUI_Scheme010", NULL);
 	pSurface = (vgui::ISurface*) pfnVGUIMatSurface("VGUI_Surface030", NULL);
 
-	m_font = 0;
-#if defined(MEDIC_OMP)
-	fontName = "FuturaHeavy11";
-#elif defined(MEDIC_VTV)
-	fontName = "HudGothic3Font";
-	m_iTextureRed = pSurface->CreateNewTextureID();
-	m_iTextureBlu = pSurface->CreateNewTextureID();
-	pSurface->DrawSetTextureId(m_iTextureRed, "HUD/advspec_med_red", 0, false);
-	pSurface->DrawSetTextureId(m_iTextureBlu, "HUD/advspec_med_blu", 0, false);
-#elif defined(MEDIC_TFTV)
-	m_healthFont = 0;
-	fontName = "TFTV12";
-	m_iTextureRed = pSurface->CreateNewTextureID();
-	m_iTextureBlu = pSurface->CreateNewTextureID();
-	m_iTextureHealth = pSurface->CreateNewTextureID();
-	pSurface->DrawSetTextureFile(m_iTextureRed, "HUD/color_panel_red", 0, false);
-	pSurface->DrawSetTextureFile(m_iTextureBlu, "HUD/color_panel_blu", 0, false);
-	pSurface->DrawSetTextureFile(m_iTextureHealth, "HUD/health_color", 0, false);
-#else
-	fontName = "Default";
-#endif
+	// Set screenWidth & height, TODO: handle resize
+	pSurface->GetScreenSize(screenWidth, screenHeight);
+
+	m_iAwesomiumTextureId = pSurface->CreateNewTextureID(true);
+	Awesomium::WebConfig config;
+
+	//TODO: Fix my DEBUG ifdef :/
+	/*config.remote_debugging_port = 9090;
+	config.remote_debugging_host = WSLit("127.0.0.1");*/
+
+	m_WebCore = Awesomium::WebCore::Initialize(config);
+	m_WebView = m_WebCore->CreateWebView(screenWidth, screenHeight);
+	m_WebView->SetTransparent(true);
+
+	m_WebView->LoadURL(Awesomium::WebURL(Awesomium::WSLit("http://mattmcn.com/omp.html")));
+
+	Awesomium::JSValue jsObjResult = m_WebView->CreateGlobalJavascriptObject(Awesomium::WSLit("advspec"));
+	if (jsObjResult.IsObject()) {
+		Awesomium::JSObject& advspecObj = jsObjResult.ToObject();
+		m_MethodDispatcher.BindWithRetval(advspecObj, Awesomium::WSLit("getMedicInfo"), JSDelegateWithRetval(this, &AdvSpecPlugin::OnJSGetMedicInfo));
+	}
+
+	m_WebView->set_js_method_handler(&m_MethodDispatcher);
+
+	m_iNearestPowerWidth = NearestPowerOfTwo(screenWidth);
+	m_iNearestPowerHeight = NearestPowerOfTwo(screenHeight);
 
 	//Hook PaintTraverse
 	origPaintTraverse = (void (__fastcall *)(void *, int, VPANEL, bool, bool))
@@ -324,6 +305,11 @@ bool AdvSpecPlugin::Load( CreateInterfaceFn interfaceFactory, CreateInterfaceFn 
 
 void AdvSpecPlugin::Unload( void )
 {
+	m_WebView->Destroy();
+	Awesomium::WebCore::Shutdown();
+
+	//TODO: clean unhooking
+
 	ConVar_Unregister( );
 	DisconnectTier1Libraries();
 }
@@ -348,6 +334,23 @@ void AdvSpecPlugin::OnQueryCvarValueFinished( QueryCvarCookie_t iCookie, edict_t
 void AdvSpecPlugin::OnEdictAllocated( edict_t *edict ){}
 void AdvSpecPlugin::OnEdictFreed( const edict_t *edict ){}
 
+JSValue AdvSpecPlugin::OnJSGetMedicInfo(WebView *webView, const JSArray &args) {
+	Awesomium::JSObject medicInfo;
+
+	Awesomium::JSObject bluMedicObj;
+	bluMedicObj.SetProperty(Awesomium::WSLit("weaponId"), Awesomium::JSValue(bluMedic.weaponID));
+	bluMedicObj.SetProperty(Awesomium::WSLit("charge"), Awesomium::JSValue(Round(bluMedic.charge*100.0f)));
+
+	Awesomium::JSObject redMedicObj;
+	redMedicObj.SetProperty(Awesomium::WSLit("weaponId"), Awesomium::JSValue(redMedic.weaponID));
+	redMedicObj.SetProperty(Awesomium::WSLit("charge"), Awesomium::JSValue(Round(redMedic.charge*100.0f)));
+
+	medicInfo.SetProperty(Awesomium::WSLit("bluMedic"), Awesomium::JSValue(bluMedicObj));
+	medicInfo.SetProperty(Awesomium::WSLit("redMedic"), Awesomium::JSValue(redMedicObj));
+
+	return Awesomium::JSValue(medicInfo);
+}
+
 static void toggle_outlines() {
 	outline_enabled.SetValue(!outline_enabled.GetBool());
 	
@@ -361,6 +364,24 @@ static void toggle_outlines() {
 
 static void outline_enabled_change(IConVar *var, const char *pOldValue, float flOldValue) {
 	UpdateEntities();
+}
+
+static void reload_overlay(const CCommand& args) {
+	//TODO: do i need this,
+	//      local file loading
+	Awesomium::WebURL blank(Awesomium::WSLit("about:blank"));
+	Awesomium::WebURL url;
+
+	if (args.ArgC() > 1) {
+		url = Awesomium::WebURL(Awesomium::WSLit(args.Arg(1)));
+	} else {
+		url = Awesomium::WebURL(Awesomium::WSLit("http://mattmcn.com/omp.html"));
+	}
+	
+	m_WebView->LoadURL(blank);
+	m_WebView->LoadURL(url);
+
+	m_WebView->Resize(screenWidth, screenHeight);
 }
 
 __inline void PrintOutlineColorCommandUsage() {

@@ -23,16 +23,8 @@
 #include "vfuncs.h"
 #include "icvar.h"
 
-#define PLUGIN_DESC "Advanced Spectator Plugin b4.3"
-#define SHORT_DESC "AdvSpec b4.3"
-
-// Custom medic info displays for various orgs
-// All require medic_private.h
-//#define MEDIC_VTV		// VTV - requires full hud
-//#define MEDIC_OMP		// BOTV & EXTV - requires font
-//#define MEDIC_TFTV  	// TFTV - requires full hud
-
-#define SCALED(normalValue) pScheme->GetProportionalScaledValue(normalValue)
+#define PLUGIN_DESC "Advanced Spectator Plugin b5 test 1"
+#define SHORT_DESC "AdvSpec b5 test 1"
 
 #include "cbase.h"
 #include "cdll_int.h"
@@ -46,6 +38,28 @@
 #include "vgui/ISurface.h"
 #include "vgui/IScheme.h"
 #include "ehandle.h"
+
+
+// Awesomium for overlay UI (medic info)
+#include <Awesomium/WebCore.h>
+#include <Awesomium/BitmapSurface.h>
+#include <Awesomium/STLHelpers.h>
+#include <Awesomium/JSValue.h>
+#include "method_dispatcher.h"
+
+using namespace Awesomium;
+
+Awesomium::WebCore *m_WebCore;
+Awesomium::WebView *m_WebView;
+Awesomium::BitmapSurface *m_BitmapSurface;
+MethodDispatcher m_MethodDispatcher;
+int m_iAwesomiumTextureId;
+int m_iTextureId;
+int m_iNearestPowerWidth;
+int m_iNearestPowerHeight;
+
+int screenWidth;
+int screenHeight;
 
 //class CBaseCombatCharacter;
 class C_BaseCombatWeapon;
@@ -62,8 +76,6 @@ IVEngineClient *pEngineClient;
 // vgui2.dll
 vgui::IPanel* pPanel;
 vgui::ISurface* pSurface;
-vgui::ISchemeManager* pScheme;
-vgui::HFont m_font;
 
 #if defined(MEDIC_VTV) || defined(MEDIC_TFTV)
 int m_iTextureBlu;
@@ -74,8 +86,6 @@ int m_iTextureRed;
 vgui::HFont m_healthFont;
 int m_iTextureHealth;
 #endif
-
-char *fontName;
 
 Color *bluColor;
 Color *redColor;
@@ -119,6 +129,8 @@ public:
 
 	// IGameEventListener Interface
 	virtual void FireGameEvent( KeyValues * event );
+
+	virtual JSValue OnJSGetMedicInfo(WebView *webView, const JSArray &args);
 };
 
 #endif
