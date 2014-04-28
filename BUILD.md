@@ -9,10 +9,10 @@ Requirements
 -
 * **[Windows]** Visual Studio or Visual Express C++
 * cmake 2.6+
-* hl2sdk-ob-valve - http://hg.alliedmods.net/hl2sdks/hl2sdk-ob-valve/
+* source-sdk-2013 - https://github.com/ValveSoftware/source-sdk-2013/
 
 Building
 -  
 **Windows**  
-`cmake -DHL2SDK=<path-to-hl2sdk...> -DLWS_DIR=<path-to-libwebsockets> -G "Visual Studio 10" ..`  
-Then open in Visual Studio/C++ Express and build.
+`cmake -DHL2SDK=c:\path\to\source-sdk-2013\mp\src -G "Visual Studio 10" ..`  
+Then open in Visual Studio/C++ Express and build. Note the `\mp\src` in the SDK path!
