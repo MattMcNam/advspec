@@ -27,10 +27,12 @@
 #define SHORT_DESC "AdvSpec b4.3"
 
 // Custom medic info displays for various orgs
-// All require medic_private.h
+// All require medic_info_drawing.h
 //#define MEDIC_VTV		// VTV - requires full hud
-//#define MEDIC_OMP		// BOTV & EXTV - requires font
+//#define MEDIC_OMP		// BOTV - requires font
 //#define MEDIC_TFTV  	// TFTV - requires full hud
+//#define MEDIC_EXTV  	// EXTV - requires full hud
+//#define MEDIC_TOTH  	// TOTH - requires font
 
 #define SCALED(normalValue) pScheme->GetProportionalScaledValue(normalValue)
 
@@ -72,6 +74,17 @@ int m_iTextureRed;
 
 #if defined(MEDIC_TFTV)
 vgui::HFont m_healthFont;
+int m_iTextureHealth;
+#endif
+
+#if defined(MEDIC_TOTH)
+vgui::HFont m_healthFont;
+#endif
+
+#if defined(MEDIC_EXTV)
+vgui::HFont m_healthFont;
+vgui::HFont m_advFont;
+int m_iTextureFrame;
 int m_iTextureHealth;
 #endif
 

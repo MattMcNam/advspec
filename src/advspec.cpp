@@ -157,10 +157,7 @@ void UpdateEntities() {
 	}
 }
 
-#if defined(MEDIC_OMP) || defined(MEDIC_TFTV) || defined(MEDIC_VTV)
-#include "medic_private.h"
-#endif
-
+#include "medic_info_drawing.h"
 void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  VPANEL vguiPanel, bool forceRepaint, bool allowForce = true ) {
 	if (pov_outline_enabled.GetBool() || medic_info_enabled.GetBool()) {
 		UpdateEntities();
@@ -201,7 +198,12 @@ void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  VPANEL vgu
 			DrawMedicVTV(offX, offY, pSurface);
 #elif defined(MEDIC_TFTV)
 			DrawMedicTFTV(offX, offY, pSurface);
+#elif defined(MEDIC_TOTH)
+			DrawMedicTotH(offX, offY, pSurface);
+#elif defined(MEDIC_EXTV)
+			DrawMedicEXTV(offX, offY, pSurface);
 #else
+
 			wchar_t wbuf[1024] = { '\0' };
 			pSurface->DrawSetColor(32, 32, 32, 200);
 			pSurface->DrawFilledRect(offX, offY, offX + 155, offY + 50);
@@ -280,12 +282,14 @@ bool AdvSpecPlugin::Load( CreateInterfaceFn interfaceFactory, CreateInterfaceFn 
 	m_font = 0;
 #if defined(MEDIC_OMP)
 	fontName = "FuturaHeavy11";
+#elif defined(MEDIC_TOTH)
+	fontName = "Bold12";
 #elif defined(MEDIC_VTV)
 	fontName = "HudGothic3Font";
 	m_iTextureRed = pSurface->CreateNewTextureID();
 	m_iTextureBlu = pSurface->CreateNewTextureID();
-	pSurface->DrawSetTextureId(m_iTextureRed, "HUD/advspec_med_red", 0, false);
-	pSurface->DrawSetTextureId(m_iTextureBlu, "HUD/advspec_med_blu", 0, false);
+	pSurface->DrawSetTextureFile(m_iTextureRed, "HUD/advspec_med_red", 0, false);
+	pSurface->DrawSetTextureFile(m_iTextureBlu, "HUD/advspec_med_blu", 0, false);
 #elif defined(MEDIC_TFTV)
 	m_healthFont = 0;
 	fontName = "TFTV12";
@@ -295,6 +299,14 @@ bool AdvSpecPlugin::Load( CreateInterfaceFn interfaceFactory, CreateInterfaceFn 
 	pSurface->DrawSetTextureFile(m_iTextureRed, "HUD/color_panel_red", 0, false);
 	pSurface->DrawSetTextureFile(m_iTextureBlu, "HUD/color_panel_blu", 0, false);
 	pSurface->DrawSetTextureFile(m_iTextureHealth, "HUD/health_color", 0, false);
+#elif defined(MEDIC_EXTV)
+	fontName = "Cerbetica14";
+	m_healthFont = 0;
+	m_advFont = 0;
+	m_iTextureFrame = pSurface->CreateNewTextureID();
+	m_iTextureHealth = pSurface->CreateNewTextureID();
+	pSurface->DrawSetTextureFile(m_iTextureFrame, "vgui/replay/thumbnails/playerpanel-frame-gfx-720-alt2", 0, false);
+	pSurface->DrawSetTextureFile(m_iTextureHealth, "HUD/uber_bg", 0, false);
 #else
 	fontName = "Default";
 #endif
