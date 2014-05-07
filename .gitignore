@@ -1,2 +1,13 @@
-# CMake build dir
-build/
+# Build dirs
+addons/*
+Release/*
+Debug/*
+
+# VPC files
+*.vpc_crc
+*.vpc.sentinel
+
+# VS 2012 files
+*.pdb
+*.vcxproj
+*.vcxproj.filters
