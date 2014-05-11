@@ -15,7 +15,7 @@
 
 #include "stdafx.h"
 
-#include "tier1/tier1.h"
+#include "tier3/tier3.h"
 #include "engine/iserverplugin.h"
 #include "igameevents.h"
 
@@ -35,7 +35,7 @@
 //#define MEDIC_EXTV  	// EXTV - requires full hud
 //#define MEDIC_TOTH  	// TOTH - requires font
 
-#define SCALED(normalValue) schemeManager->GetProportionalScaledValue(normalValue)
+#define SCALED(normalValue) g_pVGuiSchemeManager->GetProportionalScaledValue(normalValue)
 
 #include "cbase.h"
 #include "cdll_int.h"
@@ -48,11 +48,11 @@
 #include "vgui/IPanel.h"
 #include "vgui/ISurface.h"
 #include "vgui/IScheme.h"
+#include "vgui/IVgui.h"
 #include "ehandle.h"
 
 //class CBaseCombatCharacter;
 class C_BaseCombatWeapon;
-typedef unsigned int VPANEL;
 typedef CHandle<C_BaseEntity> EHANDLE;
 
 vgui::HFont m_font;

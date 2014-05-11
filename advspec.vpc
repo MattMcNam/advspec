@@ -44,5 +44,7 @@ $Project "advspec"
 	$Folder	"Link Libraries"
 	{
 		$Lib tier1
+		$Lib tier2
+		$Lib tier3
 	}
 }

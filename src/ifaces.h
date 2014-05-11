@@ -20,9 +20,6 @@
 #include "tier1/tier1.h"
 #include "cdll_int.h"
 #include "icliententitylist.h"
-#include "vgui/ipanel.h"
-#include "vgui/ischeme.h"
-#include "vgui/isurface.h"
 
 class SrcIfaces {
 public:
@@ -32,20 +29,11 @@ public:
 	IClientEntityList* GetClientEntityList();
 
 	IVEngineClient* GetEngineClient();
-
-	vgui::IPanel* GetPanel();
-	vgui::ISchemeManager* GetScheme();
-	vgui::ISurface* GetSurface();
-
 private:
 	IBaseClientDLL *pClientDll;
 	IClientEntityList *pClientEntityList;
 
 	IVEngineClient *pEngineClient;
-
-	vgui::IPanel *pPanel;
-	vgui::ISchemeManager *pScheme;
-	vgui::ISurface *pSurface;
 };
 
 extern SrcIfaces ifaces;

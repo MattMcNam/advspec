@@ -57,7 +57,7 @@ ConVar medic_info_offset_y("advspec_medic_info_offset_y", "5", 0, "How many pixe
 
 // CBaseCombatCharacter::GetGlowEffectColor(float &red, float &green, &float &blue);
 void (__fastcall *origGetGlowEffectColor)(void* thisptr, int edx, float*, float*, float*);
-void (__fastcall *origPaintTraverse)(void* thisptr, int edx, VPANEL, bool, bool);
+void (__fastcall *origPaintTraverse)(void* thisptr, int edx, vgui::VPANEL, bool, bool);
 
 void __fastcall hookedGetGlowEffectColor( CBaseCombatCharacter *thisPtr, int edx, float &red, float &green, float &blue ) {
 	int team = *MakePtr(int*, thisPtr, WSOffsets::pCTFPlayer__m_iTeamNum);
@@ -155,21 +155,24 @@ void UpdateEntities() {
 }
 
 #include "medic_info_drawing.h"
-void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  VPANEL vguiPanel, bool forceRepaint, bool allowForce = true ) {
+
+vgui::HPanel MatSystemTopPanelHandle = vgui::INVALID_PANEL;
+void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  vgui::VPANEL vguiPanel, bool forceRepaint, bool allowForce = true ) {
 	origPaintTraverse(thisPtr, edx, vguiPanel, forceRepaint, allowForce);
 	
 	if (pov_outline_enabled.GetBool() || medic_info_enabled.GetBool()) {
 		UpdateEntities();
 	}
 
-	const char* panelName = ifaces.GetPanel()->GetName(vguiPanel);
-	if (panelName[0] == 'M' && panelName[3] == 'S' &&
-		panelName[9] == 'T' && panelName[12] == 'P')
-	{
-		IVEngineClient *engineClient = ifaces.GetEngineClient();
-		vgui::ISchemeManager *schemeManager = ifaces.GetScheme();
-		vgui::ISurface* surface = ifaces.GetSurface();
+	const char* panelName = g_pVGuiPanel->GetName(vguiPanel);
+	vgui::HPanel hPanel = g_pVGui->PanelToHandle(vguiPanel);
 
+	if (MatSystemTopPanelHandle == vgui::INVALID_PANEL && (Q_strcmp(panelName, "MatSystemTopPanel") == 0)) {
+		MatSystemTopPanelHandle = hPanel;
+	}
+
+	if (hPanel == MatSystemTopPanelHandle) {
+		IVEngineClient *engineClient = ifaces.GetEngineClient();
 		if (engineClient->IsDrawingLoadingImage() || !engineClient->IsInGame( ) || !engineClient->IsConnected() || engineClient->Con_IsVisible( ))
 			return;
 
@@ -177,8 +180,8 @@ void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  VPANEL vgu
 			bluMedic.weaponID > 0 && 
 			redMedic.weaponID > 0) 
 		{
-			surface->DrawSetTextFont(m_font);
-			surface->DrawSetTextColor( 255, 255, 255, 255 );
+			g_pVGuiSurface->DrawSetTextFont(m_font);
+			g_pVGuiSurface->DrawSetTextColor( 255, 255, 255, 255 );
 
 			int offX = medic_info_offset_x.GetInt();
 			int offY = medic_info_offset_y.GetInt();
@@ -188,8 +191,8 @@ void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  VPANEL vgu
 
 			// Get font
 			if (m_font == 0) {
-				vgui::HScheme scheme = schemeManager->GetScheme("ClientScheme");
-				m_font = schemeManager->GetIScheme(scheme)->GetFont(fontName, true);
+				vgui::HScheme scheme = g_pVGuiSchemeManager->GetScheme("ClientScheme");
+				m_font = g_pVGuiSchemeManager->GetIScheme(scheme)->GetFont(fontName, true);
 			}
 
 			// These methods are similar to the chunck of code below, just styled for each HUD
@@ -207,38 +210,38 @@ void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  VPANEL vgu
 #else
 
 			wchar_t wbuf[1024] = { '\0' };
-			surface->DrawSetColor(32, 32, 32, 200);
-			surface->DrawFilledRect(offX, offY, offX + 155, offY + 50);
+			g_pVGuiSurface->DrawSetColor(32, 32, 32, 200);
+			g_pVGuiSurface->DrawFilledRect(offX, offY, offX + 155, offY + 50);
 
-			surface->DrawSetTextColor(88, 133, 162, 255);
-			surface->DrawSetTextPos(offX + 2, offY + 17);
+			g_pVGuiSurface->DrawSetTextColor(88, 133, 162, 255);
+			g_pVGuiSurface->DrawSetTextPos(offX + 2, offY + 17);
 			swprintf( wbuf, 1024, L"%S", nameForWeaponID(bluMedic.weaponID) );
-			surface->DrawPrintText(wbuf, wcslen( wbuf ));
-			surface->DrawSetTextPos(offX + 77, offY + 17);
+			g_pVGuiSurface->DrawPrintText(wbuf, wcslen( wbuf ));
+			g_pVGuiSurface->DrawSetTextPos(offX + 77, offY + 17);
 			swprintf( wbuf, 1024, L"%d%%", Round(bluMedic.charge*100.0f) );
-			surface->DrawPrintText(wbuf, wcslen( wbuf ));
+			g_pVGuiSurface->DrawPrintText(wbuf, wcslen( wbuf ));
 
-			surface->DrawSetTextColor( 184, 56, 59, 255 );
-			surface->DrawSetTextPos(offX + 2, offY + 32);
+			g_pVGuiSurface->DrawSetTextColor( 184, 56, 59, 255 );
+			g_pVGuiSurface->DrawSetTextPos(offX + 2, offY + 32);
 			swprintf( wbuf, 1024, L"%S", nameForWeaponID(redMedic.weaponID) );
-			surface->DrawPrintText(wbuf, wcslen( wbuf ));
-			surface->DrawSetTextPos(offX + 77, offY + 32);
+			g_pVGuiSurface->DrawPrintText(wbuf, wcslen( wbuf ));
+			g_pVGuiSurface->DrawSetTextPos(offX + 77, offY + 32);
 			swprintf( wbuf, 1024, L"%d%%", Round(redMedic.charge*100.0f) );
-			surface->DrawPrintText(wbuf, wcslen( wbuf ));
+			g_pVGuiSurface->DrawPrintText(wbuf, wcslen( wbuf ));
 
 			int advantage = 0;
 			if (bluMedic.charge > redMedic.charge) {
 				advantage = Round(bluMedic.charge*100.0f) - Round(redMedic.charge*100.0f);
-				surface->DrawSetTextPos(offX + 114, offY + 17);
+				g_pVGuiSurface->DrawSetTextPos(offX + 114, offY + 17);
 			} else {
 				advantage = Round(redMedic.charge*100.0f) - Round(bluMedic.charge*100.0f);
-				surface->DrawSetTextPos(offX + 114, offY + 32);
+				g_pVGuiSurface->DrawSetTextPos(offX + 114, offY + 32);
 			}
 
 			if (advantage > 0) {
-				surface->DrawSetTextColor( 255, 255, 255, 255 );
+				g_pVGuiSurface->DrawSetTextColor( 255, 255, 255, 255 );
 				swprintf( wbuf, 1024, L"+%d%%", advantage );
-				surface->DrawPrintText(wbuf, wcslen( wbuf ));
+				g_pVGuiSurface->DrawPrintText(wbuf, wcslen( wbuf ));
 			}
 #endif
 		}
@@ -259,11 +262,15 @@ AdvSpecPlugin::~AdvSpecPlugin()
 
 bool AdvSpecPlugin::Load( CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory )
 {
-	ConnectTier1Libraries( &interfaceFactory, 1 );
+	ConnectTier1Libraries(&interfaceFactory, 1);
+	ConnectTier2Libraries(&interfaceFactory, 1);
+	ConnectTier3Libraries(&interfaceFactory, 1);
 
 	if (!ifaces.Init()) {
 		Warning("[AS] Unable to get all interfaces, not loading!\n");
 		DisconnectTier1Libraries();
+		DisconnectTier2Libraries();
+		DisconnectTier3Libraries();
 		return false;
 	}
 
@@ -300,8 +307,8 @@ bool AdvSpecPlugin::Load( CreateInterfaceFn interfaceFactory, CreateInterfaceFn 
 #endif
 
 	//Hook PaintTraverse
-	origPaintTraverse = (void (__fastcall *)(void *, int, VPANEL, bool, bool))
-		HookVFunc(*(DWORD**)ifaces.GetPanel(), Index_PaintTraverse, (DWORD*) &hookedPaintTraverse);
+	origPaintTraverse = (void (__fastcall *)(void *, int, vgui::VPANEL, bool, bool))
+		HookVFunc(*(DWORD**)g_pVGuiPanel, Index_PaintTraverse, (DWORD*) &hookedPaintTraverse);
 
 	// Get offsets
 	WSOffsets::PrepareOffsets();
@@ -326,6 +333,8 @@ void AdvSpecPlugin::Unload( void )
 {
 	ConVar_Unregister( );
 	DisconnectTier1Libraries();
+	DisconnectTier2Libraries();
+	DisconnectTier3Libraries();
 }
 
 void AdvSpecPlugin::FireGameEvent( KeyValues * event ) {}
