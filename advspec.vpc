@@ -28,6 +28,7 @@ $Project "advspec"
 	$Folder	"Source Files"
 	{
 		$File	"src\advspec.cpp"
+		$File	"src\ifaces.cpp"
 		$File	"src\offsets.cpp"
 		$File	"src\vfuncs.cpp"
 	}
@@ -35,6 +36,7 @@ $Project "advspec"
 	$Folder	"Header Files"
 	{
 		$File	"src\advspec.h"
+		$File	"src\ifaces.h"
 		$File	"src\offsets.h"
 		$File	"src\vfuncs.h"
 	}

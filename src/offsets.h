@@ -12,10 +12,10 @@
 #ifndef OFFSETS_H
 #define OFFSETS_H
 
+#include "ifaces.h"
+
 #include "cdll_client_int.h"
 #include "client_class.h"
-
-extern IBaseClientDLL *pClient;
 
 class WSOffsets {
 public:

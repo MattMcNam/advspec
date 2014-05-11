@@ -38,7 +38,7 @@ void WSOffsets::PrepareOffsets() {
 //=================================================================================
 int WSOffsets::FindOffsetOfClassProp(const char *className, const char *propName) {
 	//ServerClass *sc = serverGameDLL->GetAllServerClasses();
-	ClientClass *sc = pClient->GetAllClasses();
+	ClientClass *sc = ifaces.GetBaseClientDLL()->GetAllClasses();
 	while (sc) {
 		if (Q_strcmp(sc->GetName(), className) == 0) {
 			//SendTable *sTable = sc->m_pTable;
@@ -57,7 +57,7 @@ int WSOffsets::FindOffsetOfClassProp(const char *className, const char *propName
 }
 
 int WSOffsets::FindOffsetOfArrayEnt(const char *classname, const char *arrayName, int element) {
-	ClientClass *cc = pClient->GetAllClasses();
+	ClientClass *cc = ifaces.GetBaseClientDLL()->GetAllClasses();
 	while (cc) {
 		if (Q_strcmp(cc->GetName(), classname) == 0) {
 			RecvTable *rTable = cc->m_pRecvTable;

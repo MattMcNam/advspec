@@ -101,7 +101,9 @@ const char* nameForWeaponID(int wID) {
 }
 
 void UpdateEntities() {
-	int iEntCount = pEntityList->GetHighestEntityIndex();
+	IClientEntityList *entityList = ifaces.GetClientEntityList();
+
+	int iEntCount = entityList->GetHighestEntityIndex();
 	IClientEntity *cEntity;
 
 	// Clear medic info
@@ -109,7 +111,7 @@ void UpdateEntities() {
 	redMedic.weaponID = 0;
 
 	for (int i = 0; i < iEntCount; i++) {
-		cEntity = pEntityList->GetClientEntity(i);
+		cEntity = entityList->GetClientEntity(i);
 
 		// Ensure valid player entity
 		if (cEntity == NULL || !(GetGameResources()->IsConnected(i)))
@@ -132,7 +134,7 @@ void UpdateEntities() {
 			if (playerClass == 5) {
 				unsigned int index = reinterpret_cast<EHANDLE*>( (char*)cEntity + WSOffsets::pCTFPlayer__m_hMyWeapons)->GetEntryIndex();
 
-				IClientEntity* medigun = pEntityList->GetClientEntity(index);
+				IClientEntity* medigun = entityList->GetClientEntity(index);
 
 				if (medigun) {
 					float uber = *MakePtr(float*, medigun, WSOffsets::pCWeaponMedigun__m_flChargeLevel);
@@ -154,24 +156,29 @@ void UpdateEntities() {
 
 #include "medic_info_drawing.h"
 void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  VPANEL vguiPanel, bool forceRepaint, bool allowForce = true ) {
+	origPaintTraverse(thisPtr, edx, vguiPanel, forceRepaint, allowForce);
+	
 	if (pov_outline_enabled.GetBool() || medic_info_enabled.GetBool()) {
 		UpdateEntities();
 	}
 
-	const char* panelName = pPanel->GetName(vguiPanel);
+	const char* panelName = ifaces.GetPanel()->GetName(vguiPanel);
 	if (panelName[0] == 'M' && panelName[3] == 'S' &&
 		panelName[9] == 'T' && panelName[12] == 'P')
 	{
-		origPaintTraverse(thisPtr, edx, vguiPanel, forceRepaint, allowForce);
-		if (pEngineClient->IsDrawingLoadingImage() || !pEngineClient->IsInGame( ) || !pEngineClient->IsConnected() || pEngineClient->Con_IsVisible( ))
+		IVEngineClient *engineClient = ifaces.GetEngineClient();
+		vgui::ISchemeManager *schemeManager = ifaces.GetScheme();
+		vgui::ISurface* surface = ifaces.GetSurface();
+
+		if (engineClient->IsDrawingLoadingImage() || !engineClient->IsInGame( ) || !engineClient->IsConnected() || engineClient->Con_IsVisible( ))
 			return;
 
 		if (medic_info_enabled.GetBool() && 
 			bluMedic.weaponID > 0 && 
 			redMedic.weaponID > 0) 
 		{
-			pSurface->DrawSetTextFont(m_font);
-			pSurface->DrawSetTextColor( 255, 255, 255, 255 );
+			surface->DrawSetTextFont(m_font);
+			surface->DrawSetTextColor( 255, 255, 255, 255 );
 
 			int offX = medic_info_offset_x.GetInt();
 			int offY = medic_info_offset_y.GetInt();
@@ -181,8 +188,8 @@ void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  VPANEL vgu
 
 			// Get font
 			if (m_font == 0) {
-				vgui::HScheme scheme = pScheme->GetScheme("ClientScheme");
-				m_font = pScheme->GetIScheme(scheme)->GetFont(fontName, true);
+				vgui::HScheme scheme = schemeManager->GetScheme("ClientScheme");
+				m_font = schemeManager->GetIScheme(scheme)->GetFont(fontName, true);
 			}
 
 			// These methods are similar to the chunck of code below, just styled for each HUD
@@ -200,43 +207,41 @@ void __fastcall hookedPaintTraverse( vgui::IPanel *thisPtr, int edx,  VPANEL vgu
 #else
 
 			wchar_t wbuf[1024] = { '\0' };
-			pSurface->DrawSetColor(32, 32, 32, 200);
-			pSurface->DrawFilledRect(offX, offY, offX + 155, offY + 50);
+			surface->DrawSetColor(32, 32, 32, 200);
+			surface->DrawFilledRect(offX, offY, offX + 155, offY + 50);
 
-			pSurface->DrawSetTextColor(88, 133, 162, 255);
-			pSurface->DrawSetTextPos(offX + 2, offY + 17);
+			surface->DrawSetTextColor(88, 133, 162, 255);
+			surface->DrawSetTextPos(offX + 2, offY + 17);
 			swprintf( wbuf, 1024, L"%S", nameForWeaponID(bluMedic.weaponID) );
-			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
-			pSurface->DrawSetTextPos(offX + 77, offY + 17);
+			surface->DrawPrintText(wbuf, wcslen( wbuf ));
+			surface->DrawSetTextPos(offX + 77, offY + 17);
 			swprintf( wbuf, 1024, L"%d%%", Round(bluMedic.charge*100.0f) );
-			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
+			surface->DrawPrintText(wbuf, wcslen( wbuf ));
 
-			pSurface->DrawSetTextColor( 184, 56, 59, 255 );
-			pSurface->DrawSetTextPos(offX + 2, offY + 32);
+			surface->DrawSetTextColor( 184, 56, 59, 255 );
+			surface->DrawSetTextPos(offX + 2, offY + 32);
 			swprintf( wbuf, 1024, L"%S", nameForWeaponID(redMedic.weaponID) );
-			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
-			pSurface->DrawSetTextPos(offX + 77, offY + 32);
+			surface->DrawPrintText(wbuf, wcslen( wbuf ));
+			surface->DrawSetTextPos(offX + 77, offY + 32);
 			swprintf( wbuf, 1024, L"%d%%", Round(redMedic.charge*100.0f) );
-			pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
+			surface->DrawPrintText(wbuf, wcslen( wbuf ));
 
 			int advantage = 0;
 			if (bluMedic.charge > redMedic.charge) {
 				advantage = Round(bluMedic.charge*100.0f) - Round(redMedic.charge*100.0f);
-				pSurface->DrawSetTextPos(offX + 114, offY + 17);
+				surface->DrawSetTextPos(offX + 114, offY + 17);
 			} else {
 				advantage = Round(redMedic.charge*100.0f) - Round(bluMedic.charge*100.0f);
-				pSurface->DrawSetTextPos(offX + 114, offY + 32);
+				surface->DrawSetTextPos(offX + 114, offY + 32);
 			}
 
 			if (advantage > 0) {
-				pSurface->DrawSetTextColor( 255, 255, 255, 255 );
+				surface->DrawSetTextColor( 255, 255, 255, 255 );
 				swprintf( wbuf, 1024, L"+%d%%", advantage );
-				pSurface->DrawPrintText(wbuf, wcslen( wbuf ));
+				surface->DrawPrintText(wbuf, wcslen( wbuf ));
 			}
 #endif
 		}
-	} else {
-		origPaintTraverse(thisPtr, edx, vguiPanel, forceRepaint, allowForce);
 	}
 }
 
@@ -256,23 +261,11 @@ bool AdvSpecPlugin::Load( CreateInterfaceFn interfaceFactory, CreateInterfaceFn 
 {
 	ConnectTier1Libraries( &interfaceFactory, 1 );
 
-	void* hmClient = GetHandleOfModule("client");
-	CreateInterfaceFn pfnClient = (CreateInterfaceFn) GetFuncAddress(hmClient, "CreateInterface");
-	pClient     = (IBaseClientDLL*)    pfnClient("VClient017", NULL);
-	pEntityList = (IClientEntityList*) pfnClient("VClientEntityList003", NULL);
-
-	void* hmEngine = GetHandleOfModule("engine");
-	CreateInterfaceFn pfnEngine = (CreateInterfaceFn) GetFuncAddress(hmEngine, "CreateInterface");
-	pEngineClient = (IVEngineClient*) pfnEngine("VEngineClient013", NULL);
-
-	void* hmVGUI2          = GetHandleOfModule("vgui2");
-	void* hmVGUIMatSurface = GetHandleOfModule("vguimatsurface");
-	CreateInterfaceFn pfnVGUI2          = (CreateInterfaceFn) GetFuncAddress(hmVGUI2, "CreateInterface");
-	CreateInterfaceFn pfnVGUIMatSurface = (CreateInterfaceFn) GetFuncAddress(hmVGUIMatSurface, "CreateInterface");
-
-	pPanel   = (vgui::IPanel*)   pfnVGUI2("VGUI_Panel009", NULL);
-	pScheme  = (vgui::ISchemeManager*) pfnVGUI2("VGUI_Scheme010", NULL);
-	pSurface = (vgui::ISurface*) pfnVGUIMatSurface("VGUI_Surface030", NULL);
+	if (!ifaces.Init()) {
+		Warning("[AS] Unable to get all interfaces, not loading!\n");
+		DisconnectTier1Libraries();
+		return false;
+	}
 
 	m_font = 0;
 #if defined(MEDIC_OMP)
@@ -308,7 +301,7 @@ bool AdvSpecPlugin::Load( CreateInterfaceFn interfaceFactory, CreateInterfaceFn 
 
 	//Hook PaintTraverse
 	origPaintTraverse = (void (__fastcall *)(void *, int, VPANEL, bool, bool))
-		HookVFunc(*(DWORD**)pPanel, Index_PaintTraverse, (DWORD*) &hookedPaintTraverse);
+		HookVFunc(*(DWORD**)ifaces.GetPanel(), Index_PaintTraverse, (DWORD*) &hookedPaintTraverse);
 
 	// Get offsets
 	WSOffsets::PrepareOffsets();

@@ -19,6 +19,7 @@
 #include "engine/iserverplugin.h"
 #include "igameevents.h"
 
+#include "ifaces.h"
 #include "offsets.h"
 #include "vfuncs.h"
 #include "icvar.h"
@@ -34,7 +35,7 @@
 //#define MEDIC_EXTV  	// EXTV - requires full hud
 //#define MEDIC_TOTH  	// TOTH - requires font
 
-#define SCALED(normalValue) pScheme->GetProportionalScaledValue(normalValue)
+#define SCALED(normalValue) schemeManager->GetProportionalScaledValue(normalValue)
 
 #include "cbase.h"
 #include "cdll_int.h"
@@ -54,17 +55,6 @@ class C_BaseCombatWeapon;
 typedef unsigned int VPANEL;
 typedef CHandle<C_BaseEntity> EHANDLE;
 
-// client.dll
-IBaseClientDLL* pClient;
-IClientEntityList* pEntityList;
-
-// engine.dll
-IVEngineClient *pEngineClient;
-
-// vgui2.dll
-vgui::IPanel* pPanel;
-vgui::ISurface* pSurface;
-vgui::ISchemeManager* pScheme;
 vgui::HFont m_font;
 
 #if defined(MEDIC_VTV) || defined(MEDIC_TFTV)
