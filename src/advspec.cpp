@@ -48,11 +48,6 @@ static ConCommand outline_color_command("advspec_outline_color", outline_color, 
 static void toggle_outlines();
 static ConCommand toggle_outlines_command("advspec_toggle_outline", toggle_outlines, "[Deprecated] Toggles glow effect on players");
 
-#if defined(DEBUG)
-static void scaled_value(const CCommand& args);
-static ConCommand scaled_value_command("advspec_dbg_scaled_value", scaled_value, "Prints scaled value");
-#endif
-
 static void outline_enabled_change(IConVar *var, const char *pOldValue, float flOldValue);
 ConVar outline_enabled("advspec_outline_enabled", "0", 0, "Enable glow outline around player models", outline_enabled_change);
 ConVar pov_outline_enabled("advspec_pov_outline_enabled", "0", 0, "Forces outlines to stay up-to-date in POV demos by checking every frame, may cause a noticable performance hit!");
@@ -378,14 +373,6 @@ static void outline_enabled_change(IConVar *var, const char *pOldValue, float fl
 __inline void PrintOutlineColorCommandUsage() {
 	Msg("Usage: advspec_outline_color [r|b] [0-255] [0-255] [0-255]\n       Color values in Red, Green, Blue order\n");
 }
-
-#if defined(DEBUG)
-static void scaled_value(const CCommand& args)
-{
-	int arg = atoi(args.Arg(1));
-	Msg("%d -> %d\n", arg, SCALED(arg));
-}
-#endif
 
 static void outline_color( const CCommand& args )
 {
