@@ -1,16 +1,14 @@
 AdvSpec
 =======
 
-Advanced Spectator plugin for TF2
+Advanced Spectator plugin for TF2  
+  
+**Please note**: This project has been discontinued, and features have been merged into the [StatusSpec](https://github.com/fwdcp/StatusSpec) project.
 
 Usage
 -
-Build the plugin by following `BUILD.md`, then copy advspec.dll to your TF2 server's addons folder.  
+Build the plugin by following `BUILD.md`, then copy advspec.dll to your TF2 client's `custom/.../addons` folder.  
 Load it via `plugin_load addons\advspec`, or create a VDF file.
-
-To-do
--
-See Issues tab on GitHub.
 
 License
 -
